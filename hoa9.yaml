@@ -1,0 +1,48 @@
+- hosts: all
+  gather_facts: true
+  become: true
+  become_user: root
+
+  pre_tasks:
+    - name: install updates
+      tags: always
+      apt:
+        upgrade: dist
+        update_cache: yes
+
+  tasks:
+    - name: install openssl
+      apt:
+        name: openssl
+        state: present
+
+    - name: generate CA key
+      openssl_privatekey:
+        path: /etc/ssl/private/ca.key
+        size: 4096
+      register: ca_ssl_key
+
+    - name: generate CA certificate
+      openssl_csr:
+        path: /etc/ssl/certs/ca.csr
+        privatekey_path: /etc/ssl/private/ca.key
+        common_name: "CA WITH SSL"
+        country_name: "PH"
+        state_or_province_name: "Metro Manila"
+        locality_name: "Quezon City"
+        organization_name: "Technological Institute of the Philippines"
+        email_address: "qjpfermin@tip.edu.ph"
+      register: ca_csr
+
+    - name: self signed CA certificate
+      openssl_certificate:
+        path: /etc/ssl/certs/ca.crt
+        privatekey_path: /etc/ssl/private/ca.key
+        csr_path: /etc/ssl/certs/ca.csr
+        provider: selfsigned
+        force: true
+
+    - name: copy the cert to the remote users
+      copy:
+        src: /etc/ssl/certs/ca-certificates.crt
+        dest: /etc/pki/ca-trust/source/anchors/
